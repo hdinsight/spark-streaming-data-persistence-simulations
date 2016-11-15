@@ -19,7 +19,7 @@ package org.apache.spark.streaming.eventhubs
 import org.apache.spark.storage.StorageLevel
 
 import scala.collection.Map
-import org.apache.spark.internal.Logging
+import org.apache.spark.Logging
 import org.apache.spark.streaming.receiver.Receiver
 import com.microsoft.azure.eventhubs._
 
@@ -173,7 +173,7 @@ class EventHubsReceiver(
         }
       } catch {
 
-        case c: ControlThrowable => throw c // propagate these bad throwable
+        //case c: ControlThrowable => throw c // propagate these bad throwable
         case e: Throwable => restart(s"Error handling message, restarting receiver for partition $partitionId", e)
 
       } finally {

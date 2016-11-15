@@ -21,7 +21,7 @@ import com.microsoft.spark.streaming.simulations.arguments.EventhubsArgumentPars
 import com.microsoft.spark.streaming.simulations.arguments.{EventhubsArgumentKeys, EventhubsArgumentParser}
 import com.microsoft.spark.streaming.simulations.common.{EventContent, StreamStatistics}
 import org.apache.spark._
-import org.apache.spark.sql.SparkSession
+import org.apache.spark.sql.hive.HiveContext
 import org.apache.spark.streaming.eventhubs.EventHubsUtils
 import org.apache.spark.streaming.{Seconds, StreamingContext}
 
@@ -45,12 +45,7 @@ object EventhubsToHiveTable {
         .asInstanceOf[Int].toString)
     else eventHubsParameters
 
-    /**
-      * In Spark 2.0.x, SparkConf must be initialized through EventhubsUtil so that required
-      * data structures internal to Azure Eventhubs Client get registered with the Kryo Serializer.
-      */
-
-    val sparkConfiguration : SparkConf = EventHubsUtils.initializeSparkStreamingConfigurations
+    val sparkConfiguration = new SparkConf().setAppName(this.getClass.getSimpleName)
 
     sparkConfiguration.setAppName(this.getClass.getSimpleName)
     sparkConfiguration.set("spark.streaming.driver.writeAheadLog.allowBatching", "true")
@@ -60,9 +55,9 @@ object EventhubsToHiveTable {
     sparkConfiguration.set("spark.streaming.receiver.writeAheadLog.closeFileAfterWrite", "true")
     sparkConfiguration.set("spark.streaming.stopGracefullyOnShutdown", "true")
 
-    val sparkSession : SparkSession = SparkSession.builder.config(sparkConfiguration).enableHiveSupport.getOrCreate
+    val sparkContext = new SparkContext(sparkConfiguration)
 
-    val streamingContext = new StreamingContext(sparkSession.sparkContext,
+    val streamingContext = new StreamingContext(sparkContext,
       Seconds(inputOptions(Symbol(EventhubsArgumentKeys.BatchIntervalInSeconds)).asInstanceOf[Int]))
     streamingContext.checkpoint(inputOptions(Symbol(EventhubsArgumentKeys.CheckpointDirectory)).asInstanceOf[String])
 
@@ -71,6 +66,10 @@ object EventhubsToHiveTable {
     val eventHubsWindowedStream = eventHubsStream
       .window(Seconds(inputOptions(Symbol(EventhubsArgumentKeys.BatchIntervalInSeconds)).asInstanceOf[Int]))
 
+    val hiveContext = new HiveContext(streamingContext.sparkContext)
+
+    import hiveContext.implicits._
+
     val hiveTableName: String = inputOptions(Symbol(EventhubsArgumentKeys.EventHiveTable)).asInstanceOf[String]
 
     //Table needs to be explicitly created to match the Parquet format in which the data is stored by default by
@@ -78,19 +77,10 @@ object EventhubsToHiveTable {
 
     val hiveTableDDL: String = f"CREATE TABLE IF NOT EXISTS $hiveTableName (EventContent string) STORED AS PARQUET"
 
-    sparkSession.sql(hiveTableDDL)
-
-    /**
-      * .saveAsTable does not work so insertInto is used.
-      * Refer to SPARK-16803 (https://issues.apache.org/jira/browse/SPARK-16803)
-      */
+    hiveContext.sql(hiveTableDDL)
 
     eventHubsWindowedStream.map(x => EventContent(new String(x)))
-      .foreachRDD(rdd => {
-        val sparkSession = SparkSession.builder.enableHiveSupport.getOrCreate
-        import sparkSession.implicits._
-        rdd.toDS.write.mode(org.apache.spark.sql.SaveMode.Append).insertInto(hiveTableName)
-      })
+      .foreachRDD(rdd => rdd.toDF().write.mode(org.apache.spark.sql.SaveMode.Append).saveAsTable(hiveTableName))
 
     // Count number of events received the past batch
 

@@ -23,7 +23,7 @@ import com.microsoft.spark.streaming.simulations.arguments.EventhubsArgumentPars
 import com.microsoft.spark.streaming.simulations.arguments.{EventhubsArgumentKeys, EventhubsArgumentParser}
 import com.microsoft.spark.streaming.simulations.common.{EventContent, StreamStatistics, StreamUtilities}
 import org.apache.spark._
-import org.apache.spark.sql.SparkSession
+import org.apache.spark.sql.SQLContext
 import org.apache.spark.streaming.eventhubs.EventHubsUtils
 import org.apache.spark.streaming.{Seconds, StreamingContext}
 
@@ -55,12 +55,7 @@ object EventhubsToAzureSQLTable {
 
     val sqlTableName: String = inputOptions(Symbol(EventhubsArgumentKeys.EventSQLTable)).asInstanceOf[String]
 
-    /**
-      * In Spark 2.0.x, SparkConf must be initialized through EventhubsUtil so that required
-      * data structures internal to Azure Eventhubs Client get registered with the Kryo Serializer.
-      */
-
-    val sparkConfiguration : SparkConf = EventHubsUtils.initializeSparkStreamingConfigurations
+    val sparkConfiguration = new SparkConf().setAppName(this.getClass.getSimpleName)
 
     sparkConfiguration.setAppName(this.getClass.getSimpleName)
     sparkConfiguration.set("spark.streaming.driver.writeAheadLog.allowBatching", "true")
@@ -70,9 +65,9 @@ object EventhubsToAzureSQLTable {
     sparkConfiguration.set("spark.streaming.receiver.writeAheadLog.closeFileAfterWrite", "true")
     sparkConfiguration.set("spark.streaming.stopGracefullyOnShutdown", "true")
 
-    val sparkSession : SparkSession = SparkSession.builder().config(sparkConfiguration).getOrCreate()
+    val sparkContext = new SparkContext(sparkConfiguration)
 
-    val streamingContext = new StreamingContext(sparkSession.sparkContext,
+    val streamingContext = new StreamingContext(sparkContext,
       Seconds(inputOptions(Symbol(EventhubsArgumentKeys.BatchIntervalInSeconds)).asInstanceOf[Int]))
     streamingContext.checkpoint(inputOptions(Symbol(EventhubsArgumentKeys.CheckpointDirectory)).asInstanceOf[String])
 
@@ -81,15 +76,14 @@ object EventhubsToAzureSQLTable {
     val eventHubsWindowedStream = eventHubsStream
       .window(Seconds(inputOptions(Symbol(EventhubsArgumentKeys.BatchIntervalInSeconds)).asInstanceOf[Int]))
 
+    val sqlContext = SQLContext.getOrCreate(streamingContext.sparkContext)
+
+    import sqlContext.implicits._
+
     import com.microsoft.spark.streaming.simulations.common.DataFrameExtensions._
 
     eventHubsWindowedStream.map(m => EventContent(new String(m)))
-      .foreachRDD { rdd => {
-          val sparkSession = SparkSession.builder.getOrCreate
-          import sparkSession.implicits._
-          rdd.toDF.insertToAzureSql(sqlDatabaseConnectionString, sqlTableName)
-        }
-      }
+      .foreachRDD { rdd => rdd.toDF().insertToAzureSql(sqlDatabaseConnectionString, sqlTableName) }
 
     // Count number of events received the past batch
 

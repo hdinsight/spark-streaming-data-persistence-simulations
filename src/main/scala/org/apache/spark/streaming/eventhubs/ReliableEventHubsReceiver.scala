@@ -17,7 +17,6 @@
 package org.apache.spark.streaming.eventhubs
 
 import java.util.concurrent.ConcurrentHashMap
-//import com.microsoft.eventhubs.client.EventHubMessage
 import org.apache.spark.SparkEnv
 import org.apache.spark.storage.{StreamBlockId, StorageLevel}
 import org.apache.spark.streaming.receiver.{BlockGenerator, BlockGeneratorListener}

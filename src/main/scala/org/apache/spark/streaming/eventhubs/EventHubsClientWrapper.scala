@@ -16,7 +16,6 @@
  */
 package org.apache.spark.streaming.eventhubs
 
-
 import java.time.Instant
 import com.microsoft.azure.eventhubs.EventData.SystemProperties
 import com.microsoft.azure.eventhubs._
@@ -24,7 +23,8 @@ import com.microsoft.azure.servicebus.amqp.AmqpConstants
 import org.mockito.internal.util.reflection.Whitebox
 import scala.collection.Map
 import scala.collection.mutable.ArrayBuffer
-import scala.util.Random
+import java.util.Random
+import org.apache.commons.lang.RandomStringUtils
 
 /**
  * Wraps a raw EventHubReceiver to make it easier for unit tests
@@ -47,51 +47,51 @@ class EventHubsClientWrapper extends Serializable {
     if(previousOffset != "-1" && previousOffset != null) {
 
       offsetType = EventhubsOffsetType.PreviousCheckpoint
-      currentOffset = previousOffset
+      this.currentOffset = previousOffset
 
     } else if (eventhubsParams.contains("eventhubs.filter.offset")) {
 
       offsetType = EventhubsOffsetType.InputByteOffset
-      currentOffset = eventhubsParams("eventhubs.filter.offset")
+      this.currentOffset = eventhubsParams("eventhubs.filter.offset")
 
     } else if (eventhubsParams.contains("eventhubs.filter.enqueuetime")) {
 
       offsetType = EventhubsOffsetType.InputTimeOffset
-      currentOffset = eventhubsParams("eventhubs.filter.enqueuetime")
+      this.currentOffset = eventhubsParams("eventhubs.filter.enqueuetime")
     }
 
     if (eventhubsParams.contains("eventhubs.event.size")) {
 
-      eventLength = eventhubsParams("eventhubs.event.size").toInt
+      this.eventLength = eventhubsParams("eventhubs.event.size").toInt
     }
 
-    MAXIMUM_EVENT_RATE = maximumEventRate
+    this.MAXIMUM_EVENT_RATE = maximumEventRate
 
-    if (maximumEventRate > 0 && maximumEventRate < MINIMUM_PREFETCH_COUNT)
-      MAXIMUM_PREFETCH_COUNT = MINIMUM_PREFETCH_COUNT
-    else if (maximumEventRate >= MINIMUM_PREFETCH_COUNT && maximumEventRate < MAXIMUM_PREFETCH_COUNT)
-      MAXIMUM_PREFETCH_COUNT = MAXIMUM_EVENT_RATE + 1
-    else MAXIMUM_EVENT_RATE = MAXIMUM_PREFETCH_COUNT - 1
+    if (maximumEventRate > 0 && maximumEventRate < this.MINIMUM_PREFETCH_COUNT)
+      this.MAXIMUM_PREFETCH_COUNT = this.MINIMUM_PREFETCH_COUNT
+    else if (maximumEventRate >= this.MINIMUM_PREFETCH_COUNT && maximumEventRate < this.MAXIMUM_PREFETCH_COUNT)
+      this.MAXIMUM_PREFETCH_COUNT = this.MAXIMUM_EVENT_RATE + 1
+    else this.MAXIMUM_EVENT_RATE = this.MAXIMUM_PREFETCH_COUNT - 1
   }
 
   def receive(): Iterable[EventData] = {
 
     val receivedEvents: ArrayBuffer[EventData] = new ArrayBuffer[EventData]()
 
-    for(i <- 0 until Random.nextInt(MAXIMUM_PREFETCH_COUNT)) {
+    for(i <- 0 until this.randomGenerator.nextInt(this.MAXIMUM_PREFETCH_COUNT)) {
 
-      val eventPayload: String = Random.alphanumeric.take(eventLength).mkString
+      val eventPayload: String = RandomStringUtils.randomAlphanumeric(this.eventLength)
       val eventData: EventData = new EventData(eventPayload.getBytes())
 
       val systemPropertiesMap: java.util.HashMap[String, AnyRef] = new java.util.HashMap[String, AnyRef]()
 
-      systemPropertiesMap.put(AmqpConstants.OFFSET_ANNOTATION_NAME, currentOffset)
-      systemPropertiesMap.put(AmqpConstants.SEQUENCE_NUMBER_ANNOTATION_NAME, Long.box(eventSequenceNumber))
-      systemPropertiesMap.put(AmqpConstants.PARTITION_KEY_ANNOTATION_NAME, eventhubPartitionId)
+      systemPropertiesMap.put(AmqpConstants.OFFSET_ANNOTATION_NAME, this.currentOffset)
+      systemPropertiesMap.put(AmqpConstants.SEQUENCE_NUMBER_ANNOTATION_NAME, Long.box(this.eventSequenceNumber))
+      systemPropertiesMap.put(AmqpConstants.PARTITION_KEY_ANNOTATION_NAME, this.eventhubPartitionId)
       systemPropertiesMap.put(AmqpConstants.ENQUEUED_TIME_UTC_ANNOTATION_NAME, Instant.now())
 
-      eventSequenceNumber = eventSequenceNumber + 1
-      currentOffset = (currentOffset.toLong + 1).toString
+      this.eventSequenceNumber = this.eventSequenceNumber + 1
+      this.currentOffset = (this.currentOffset.toLong + 1).toString
 
       val systemProperties: SystemProperties = new SystemProperties(systemPropertiesMap)
 

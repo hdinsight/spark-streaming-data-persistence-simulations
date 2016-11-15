@@ -29,17 +29,6 @@ import scala.collection.Map
 object EventHubsUtils {
 
   /**
-    * Return an initialized SparkConf that registered
-    * Azure Eventhubs client's internal classes with Kryo serializer
-    * @return SparkConf
-    */
-
-  def initializeSparkStreamingConfigurations: SparkConf = {
-
-    new SparkConf().registerKryoClasses(Array(classOf[EventData]))
-  }
-
-  /**
    * Create a unioned EventHubs stream that receives data from Microsoft Azure Eventhubs
    * The unioned stream will receive message from all partitions of the EventHubs
    *
