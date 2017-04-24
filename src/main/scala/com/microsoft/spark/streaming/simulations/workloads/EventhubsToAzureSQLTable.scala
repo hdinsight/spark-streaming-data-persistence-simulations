@@ -19,9 +19,11 @@ package com.microsoft.spark.streaming.simulations.workloads
 
 import java.sql.{Connection, DriverManager, Statement}
 
+import com.microsoft.spark.streaming.simulations.arguments.EventhubsArgumentKeys
+import com.microsoft.spark.streaming.simulations.arguments.EventhubsArgumentParser
 import com.microsoft.spark.streaming.simulations.arguments.EventhubsArgumentParser._
-import com.microsoft.spark.streaming.simulations.arguments.{EventhubsArgumentKeys, EventhubsArgumentParser}
 import com.microsoft.spark.streaming.simulations.common.{EventContent, StreamStatistics, StreamUtilities}
+
 import org.apache.spark._
 import org.apache.spark.sql.SparkSession
 import org.apache.spark.streaming.eventhubs.EventHubsUtils
@@ -33,19 +35,24 @@ object EventhubsToAzureSQLTable {
 
     var eventHubsParameters = Map[String, String](
 
-      "eventhubs.namespace" -> inputOptions(Symbol(EventhubsArgumentKeys.EventhubsNamespace)).asInstanceOf[String],
-      "eventhubs.name" -> inputOptions(Symbol(EventhubsArgumentKeys.EventhubsName)).asInstanceOf[String],
-      "eventhubs.partition.count" -> inputOptions(Symbol(EventhubsArgumentKeys.PartitionCount))
-      .asInstanceOf[Int].toString,
-      "eventhubs.checkpoint.interval" -> inputOptions(Symbol(EventhubsArgumentKeys.BatchIntervalInSeconds))
-      .asInstanceOf[Int].toString,
-      "eventhubs.checkpoint.dir" -> inputOptions(Symbol(EventhubsArgumentKeys.CheckpointDirectory)).asInstanceOf[String]
+      "eventhubs.namespace" ->
+        inputOptions(Symbol(EventhubsArgumentKeys.EventhubsNamespace)).asInstanceOf[String],
+      "eventhubs.name" ->
+        inputOptions(Symbol(EventhubsArgumentKeys.EventhubsName)).asInstanceOf[String],
+      "eventhubs.partition.count" ->
+        inputOptions(Symbol(EventhubsArgumentKeys.PartitionCount)).asInstanceOf[Int].toString,
+      "eventhubs.checkpoint.interval" ->
+        inputOptions(Symbol(EventhubsArgumentKeys.BatchIntervalInSeconds))
+          .asInstanceOf[Int].toString,
+      "eventhubs.checkpoint.dir" ->
+        inputOptions(Symbol(EventhubsArgumentKeys.CheckpointDirectory)).asInstanceOf[String]
     )
 
-    eventHubsParameters = if (inputOptions.contains(Symbol(EventhubsArgumentKeys.EventSizeInChars)))
-      eventHubsParameters + ("eventhubs.event.size" -> inputOptions(Symbol(EventhubsArgumentKeys.EventSizeInChars))
-        .asInstanceOf[Int].toString)
-    else eventHubsParameters
+    eventHubsParameters =
+      if (inputOptions.contains(Symbol(EventhubsArgumentKeys.EventSizeInChars))) {
+        eventHubsParameters + ("eventhubs.event.size" ->
+          inputOptions(Symbol(EventhubsArgumentKeys.EventSizeInChars)).asInstanceOf[Int].toString)
+      } else eventHubsParameters
 
     val sqlDatabaseConnectionString : String = StreamUtilities.getSqlJdbcConnectionString(
       inputOptions(Symbol(EventhubsArgumentKeys.SQLServerFQDN)).asInstanceOf[String],
@@ -53,7 +60,8 @@ object EventhubsToAzureSQLTable {
       inputOptions(Symbol(EventhubsArgumentKeys.DatabaseUsername)).asInstanceOf[String],
       inputOptions(Symbol(EventhubsArgumentKeys.DatabasePassword)).asInstanceOf[String])
 
-    val sqlTableName: String = inputOptions(Symbol(EventhubsArgumentKeys.EventSQLTable)).asInstanceOf[String]
+    val sqlTableName: String =
+      inputOptions(Symbol(EventhubsArgumentKeys.EventSQLTable)).asInstanceOf[String]
 
     /**
       * In Spark 2.0.x, SparkConf must be initialized through EventhubsUtil so that required
@@ -70,16 +78,19 @@ object EventhubsToAzureSQLTable {
     sparkConfiguration.set("spark.streaming.receiver.writeAheadLog.closeFileAfterWrite", "true")
     sparkConfiguration.set("spark.streaming.stopGracefullyOnShutdown", "true")
 
-    val sparkSession : SparkSession = SparkSession.builder().config(sparkConfiguration).getOrCreate()
+    val sparkSession : SparkSession =
+      SparkSession.builder().config(sparkConfiguration).getOrCreate()
 
     val streamingContext = new StreamingContext(sparkSession.sparkContext,
       Seconds(inputOptions(Symbol(EventhubsArgumentKeys.BatchIntervalInSeconds)).asInstanceOf[Int]))
-    streamingContext.checkpoint(inputOptions(Symbol(EventhubsArgumentKeys.CheckpointDirectory)).asInstanceOf[String])
+    streamingContext.checkpoint(inputOptions(Symbol(EventhubsArgumentKeys.CheckpointDirectory))
+      .asInstanceOf[String])
 
     val eventHubsStream = EventHubsUtils.createUnionStream(streamingContext, eventHubsParameters)
 
-    val eventHubsWindowedStream = eventHubsStream
-      .window(Seconds(inputOptions(Symbol(EventhubsArgumentKeys.BatchIntervalInSeconds)).asInstanceOf[Int]))
+    val eventHubsWindowedStream =
+      eventHubsStream.window(Seconds(inputOptions(Symbol(EventhubsArgumentKeys
+        .BatchIntervalInSeconds)).asInstanceOf[Int]))
 
     import com.microsoft.spark.streaming.simulations.common.DataFrameExtensions._
 
@@ -99,10 +110,12 @@ object EventhubsToAzureSQLTable {
 
     // Count number of events received so far
 
-    val totalEventCountDStream = eventHubsWindowedStream.map(m => (StreamStatistics.streamLengthKey, 1L))
-    val totalEventCount = totalEventCountDStream.updateStateByKey[Long](StreamStatistics.streamLength)
-    totalEventCount.checkpoint(Seconds(inputOptions(Symbol(EventhubsArgumentKeys.BatchIntervalInSeconds))
-      .asInstanceOf[Int]))
+    val totalEventCountDStream =
+      eventHubsWindowedStream.map(m => (StreamStatistics.streamLengthKey, 1L))
+    val totalEventCount =
+      totalEventCountDStream.updateStateByKey[Long](StreamStatistics.streamLength)
+    totalEventCount.checkpoint(Seconds(inputOptions(Symbol(EventhubsArgumentKeys
+      .BatchIntervalInSeconds)).asInstanceOf[Int]))
 
     if (inputOptions.contains(Symbol(EventhubsArgumentKeys.EventCountFolder))) {
 
@@ -127,35 +140,37 @@ object EventhubsToAzureSQLTable {
       inputOptions(Symbol(EventhubsArgumentKeys.DatabaseUsername)).asInstanceOf[String],
       inputOptions(Symbol(EventhubsArgumentKeys.DatabasePassword)).asInstanceOf[String])
 
-    val sqlTableName: String = inputOptions(Symbol(EventhubsArgumentKeys.EventSQLTable)).asInstanceOf[String]
+    val sqlTableName: String =
+      inputOptions(Symbol(EventhubsArgumentKeys.EventSQLTable)).asInstanceOf[String]
 
-    val sqlDriverConnection: Connection =  DriverManager.getConnection(sqlDatabaseConnectionString)
+    val sqlDriverConnection: Connection =
+      DriverManager.getConnection(sqlDatabaseConnectionString)
 
     sqlDriverConnection.setAutoCommit(false)
     val sqlDriverStatement: Statement = sqlDriverConnection.createStatement()
     sqlDriverStatement.addBatch(f"IF NOT EXISTS(SELECT * FROM sys.objects WHERE object_id" +
       f" = OBJECT_ID(N'[dbo].[$sqlTableName]') AND type in (N'U'))" +
       f"\nCREATE TABLE $sqlTableName(EventDetails NVARCHAR(128) NOT NULL)")
-    sqlDriverStatement.addBatch(f"IF IndexProperty(Object_Id('$sqlTableName'), 'IX_EventDetails', 'IndexId') IS NULL" +
+    sqlDriverStatement.addBatch(f"IF IndexProperty(Object_Id('$sqlTableName')," +
+      f" 'IX_EventDetails', 'IndexId') IS NULL" +
       f"\nCREATE CLUSTERED INDEX IX_EventDetails ON $sqlTableName(EventDetails)")
     sqlDriverStatement.executeBatch()
     sqlDriverConnection.commit()
 
     sqlDriverConnection.close()
 
-    //Create or recreate streaming context
+    // Create or recreate streaming context
 
-    val streamingContext = StreamingContext
-      .getOrCreate(inputOptions(Symbol(EventhubsArgumentKeys.CheckpointDirectory)).asInstanceOf[String],
-        () => createStreamingContext(inputOptions))
+    val streamingContext = StreamingContext.getOrCreate(inputOptions(Symbol(EventhubsArgumentKeys
+      .CheckpointDirectory)).asInstanceOf[String], () => createStreamingContext(inputOptions))
 
 
     streamingContext.start()
 
     if (inputOptions.contains(Symbol(EventhubsArgumentKeys.TimeoutInMinutes))) {
 
-      streamingContext.awaitTerminationOrTimeout(inputOptions(Symbol(EventhubsArgumentKeys.TimeoutInMinutes))
-        .asInstanceOf[Long] * 60 * 1000)
+      streamingContext.awaitTerminationOrTimeout(inputOptions(Symbol(EventhubsArgumentKeys
+        .TimeoutInMinutes)).asInstanceOf[Long] * 60 * 1000)
     }
     else {
 

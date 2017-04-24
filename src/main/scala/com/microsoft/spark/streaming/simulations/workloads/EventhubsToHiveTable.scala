@@ -17,9 +17,11 @@
 
 package com.microsoft.spark.streaming.simulations.workloads
 
+import com.microsoft.spark.streaming.simulations.arguments.EventhubsArgumentKeys
+import com.microsoft.spark.streaming.simulations.arguments.EventhubsArgumentParser
 import com.microsoft.spark.streaming.simulations.arguments.EventhubsArgumentParser._
-import com.microsoft.spark.streaming.simulations.arguments.{EventhubsArgumentKeys, EventhubsArgumentParser}
 import com.microsoft.spark.streaming.simulations.common.{EventContent, StreamStatistics}
+
 import org.apache.spark._
 import org.apache.spark.sql.SparkSession
 import org.apache.spark.streaming.eventhubs.EventHubsUtils
@@ -31,19 +33,24 @@ object EventhubsToHiveTable {
 
     var eventHubsParameters = Map[String, String](
 
-      "eventhubs.namespace" -> inputOptions(Symbol(EventhubsArgumentKeys.EventhubsNamespace)).asInstanceOf[String],
-      "eventhubs.name" -> inputOptions(Symbol(EventhubsArgumentKeys.EventhubsName)).asInstanceOf[String],
-      "eventhubs.partition.count" -> inputOptions(Symbol(EventhubsArgumentKeys.PartitionCount))
-      .asInstanceOf[Int].toString,
-      "eventhubs.checkpoint.interval" -> inputOptions(Symbol(EventhubsArgumentKeys.BatchIntervalInSeconds))
-      .asInstanceOf[Int].toString,
-      "eventhubs.checkpoint.dir" -> inputOptions(Symbol(EventhubsArgumentKeys.CheckpointDirectory)).asInstanceOf[String]
+      "eventhubs.namespace" ->
+        inputOptions(Symbol(EventhubsArgumentKeys.EventhubsNamespace)).asInstanceOf[String],
+      "eventhubs.name" ->
+        inputOptions(Symbol(EventhubsArgumentKeys.EventhubsName)).asInstanceOf[String],
+      "eventhubs.partition.count" ->
+        inputOptions(Symbol(EventhubsArgumentKeys.PartitionCount)).asInstanceOf[Int].toString,
+      "eventhubs.checkpoint.interval" ->
+        inputOptions(Symbol(EventhubsArgumentKeys.BatchIntervalInSeconds)).asInstanceOf[Int]
+          .toString,
+      "eventhubs.checkpoint.dir" ->
+        inputOptions(Symbol(EventhubsArgumentKeys.CheckpointDirectory)).asInstanceOf[String]
     )
 
-    eventHubsParameters = if (inputOptions.contains(Symbol(EventhubsArgumentKeys.EventSizeInChars)))
-      eventHubsParameters + ("eventhubs.event.size" -> inputOptions(Symbol(EventhubsArgumentKeys.EventSizeInChars))
-        .asInstanceOf[Int].toString)
-    else eventHubsParameters
+    eventHubsParameters =
+      if (inputOptions.contains(Symbol(EventhubsArgumentKeys.EventSizeInChars))) {
+        eventHubsParameters + ("eventhubs.event.size" ->
+          inputOptions(Symbol(EventhubsArgumentKeys.EventSizeInChars)).asInstanceOf[Int].toString)
+      } else eventHubsParameters
 
     /**
       * In Spark 2.0.x, SparkConf must be initialized through EventhubsUtil so that required
@@ -60,23 +67,29 @@ object EventhubsToHiveTable {
     sparkConfiguration.set("spark.streaming.receiver.writeAheadLog.closeFileAfterWrite", "true")
     sparkConfiguration.set("spark.streaming.stopGracefullyOnShutdown", "true")
 
-    val sparkSession : SparkSession = SparkSession.builder.config(sparkConfiguration).enableHiveSupport.getOrCreate
+    val sparkSession : SparkSession =
+      SparkSession.builder.config(sparkConfiguration).enableHiveSupport.getOrCreate
 
     val streamingContext = new StreamingContext(sparkSession.sparkContext,
       Seconds(inputOptions(Symbol(EventhubsArgumentKeys.BatchIntervalInSeconds)).asInstanceOf[Int]))
-    streamingContext.checkpoint(inputOptions(Symbol(EventhubsArgumentKeys.CheckpointDirectory)).asInstanceOf[String])
+    streamingContext.checkpoint(inputOptions(Symbol(EventhubsArgumentKeys
+      .CheckpointDirectory)).asInstanceOf[String])
 
     val eventHubsStream = EventHubsUtils.createUnionStream(streamingContext, eventHubsParameters)
 
-    val eventHubsWindowedStream = eventHubsStream
-      .window(Seconds(inputOptions(Symbol(EventhubsArgumentKeys.BatchIntervalInSeconds)).asInstanceOf[Int]))
+    val eventHubsWindowedStream =
+      eventHubsStream.window(Seconds(inputOptions(Symbol(EventhubsArgumentKeys
+        .BatchIntervalInSeconds)).asInstanceOf[Int]))
 
-    val hiveTableName: String = inputOptions(Symbol(EventhubsArgumentKeys.EventHiveTable)).asInstanceOf[String]
+    val hiveTableName: String =
+      inputOptions(Symbol(EventhubsArgumentKeys.EventHiveTable)).asInstanceOf[String]
 
-    //Table needs to be explicitly created to match the Parquet format in which the data is stored by default by
-    //Spark. If not explicitly created the Hive table cannot be used from Hive and can only be used from inside Spark.
+    // Table needs to be explicitly created to match the Parquet format in which the data is
+    // stored by default by Spark. If not explicitly created the Hive table cannot be used from
+    // Hive and can only be used from inside Spark.
 
-    val hiveTableDDL: String = f"CREATE TABLE IF NOT EXISTS $hiveTableName (EventContent string) STORED AS PARQUET"
+    val hiveTableDDL: String =
+      f"CREATE TABLE IF NOT EXISTS $hiveTableName (EventContent string) STORED AS PARQUET"
 
     sparkSession.sql(hiveTableDDL)
 
@@ -100,10 +113,12 @@ object EventhubsToHiveTable {
 
     // Count number of events received so far
 
-    val totalEventCountDStream = eventHubsWindowedStream.map(m => (StreamStatistics.streamLengthKey, 1L))
-    val totalEventCount = totalEventCountDStream.updateStateByKey[Long](StreamStatistics.streamLength)
-    totalEventCount.checkpoint(Seconds(inputOptions(Symbol(EventhubsArgumentKeys.BatchIntervalInSeconds))
-      .asInstanceOf[Int]))
+    val totalEventCountDStream =
+      eventHubsWindowedStream.map(m => (StreamStatistics.streamLengthKey, 1L))
+    val totalEventCount =
+      totalEventCountDStream.updateStateByKey[Long](StreamStatistics.streamLength)
+    totalEventCount.checkpoint(Seconds(inputOptions(Symbol(EventhubsArgumentKeys
+      .BatchIntervalInSeconds)).asInstanceOf[Int]))
 
     if (inputOptions.contains(Symbol(EventhubsArgumentKeys.EventCountFolder))) {
 
@@ -122,18 +137,17 @@ object EventhubsToHiveTable {
 
     EventhubsArgumentParser.verifyEventhubsToHiveTableArguments(inputOptions)
 
-    //Create or recreate streaming context
+    // Create or recreate streaming context
 
-    val streamingContext = StreamingContext
-      .getOrCreate(inputOptions(Symbol(EventhubsArgumentKeys.CheckpointDirectory)).asInstanceOf[String],
-        () => createStreamingContext(inputOptions))
+    val streamingContext = StreamingContext.getOrCreate(inputOptions(Symbol(EventhubsArgumentKeys
+      .CheckpointDirectory)).asInstanceOf[String], () => createStreamingContext(inputOptions))
 
     streamingContext.start()
 
     if(inputOptions.contains(Symbol(EventhubsArgumentKeys.TimeoutInMinutes))) {
 
-      streamingContext.awaitTerminationOrTimeout(inputOptions(Symbol(EventhubsArgumentKeys.TimeoutInMinutes))
-        .asInstanceOf[Long] * 60 * 1000)
+      streamingContext.awaitTerminationOrTimeout(inputOptions(Symbol(EventhubsArgumentKeys
+        .TimeoutInMinutes)).asInstanceOf[Long] * 60 * 1000)
     }
     else {
 
