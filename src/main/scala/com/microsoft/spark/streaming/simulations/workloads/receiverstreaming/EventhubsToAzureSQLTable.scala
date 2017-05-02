@@ -15,18 +15,20 @@
  * limitations under the License.
  */
 
-package com.microsoft.spark.streaming.simulations.workloads
+package com.microsoft.spark.streaming.simulations.workloads.receiverstreaming
+
+import java.sql.{Connection, DriverManager, Statement}
 
 import com.microsoft.spark.streaming.simulations.arguments.{EventhubsArgumentKeys, EventhubsArgumentParser}
-import com.microsoft.spark.streaming.simulations.arguments.EventhubsArgumentParser.ArgumentMap
-import com.microsoft.spark.streaming.simulations.common.StreamStatistics
+import com.microsoft.spark.streaming.simulations.arguments.EventhubsArgumentParser._
+import com.microsoft.spark.streaming.simulations.common.{EventContent, StreamStatistics, StreamUtilities}
 
 import org.apache.spark._
 import org.apache.spark.sql.SparkSession
 import org.apache.spark.streaming.eventhubs.EventHubsUtils
 import org.apache.spark.streaming.{Seconds, StreamingContext}
 
-object EventhubsEventCount {
+object EventhubsToAzureSQLTable {
 
   def createStreamingContext(inputOptions: ArgumentMap): StreamingContext = {
 
@@ -47,11 +49,18 @@ object EventhubsEventCount {
 
     eventHubsParameters =
       if (inputOptions.contains(Symbol(EventhubsArgumentKeys.EventSizeInChars))) {
-      eventHubsParameters + ("eventhubs.event.size" ->
-        inputOptions(Symbol(EventhubsArgumentKeys.EventSizeInChars))
-        .asInstanceOf[Int].toString)
-    } else eventHubsParameters
+        eventHubsParameters + ("eventhubs.event.size" ->
+          inputOptions(Symbol(EventhubsArgumentKeys.EventSizeInChars)).asInstanceOf[Int].toString)
+      } else eventHubsParameters
 
+    val sqlDatabaseConnectionString : String = StreamUtilities.getSqlJdbcConnectionString(
+      inputOptions(Symbol(EventhubsArgumentKeys.SQLServerFQDN)).asInstanceOf[String],
+      inputOptions(Symbol(EventhubsArgumentKeys.SQLDatabaseName)).asInstanceOf[String],
+      inputOptions(Symbol(EventhubsArgumentKeys.DatabaseUsername)).asInstanceOf[String],
+      inputOptions(Symbol(EventhubsArgumentKeys.DatabasePassword)).asInstanceOf[String])
+
+    val sqlTableName: String =
+      inputOptions(Symbol(EventhubsArgumentKeys.EventSQLTable)).asInstanceOf[String]
 
     /**
       * In Spark 2.0.x, SparkConf must be initialized through EventhubsUtil so that required
@@ -78,9 +87,19 @@ object EventhubsEventCount {
 
     val eventHubsStream = EventHubsUtils.createUnionStream(streamingContext, eventHubsParameters)
 
-    val eventHubsWindowedStream = eventHubsStream
-      .window(Seconds(inputOptions(Symbol(EventhubsArgumentKeys.BatchIntervalInSeconds))
-        .asInstanceOf[Int]))
+    val eventHubsWindowedStream =
+      eventHubsStream.window(Seconds(inputOptions(Symbol(EventhubsArgumentKeys
+        .BatchIntervalInSeconds)).asInstanceOf[Int]))
+
+    import com.microsoft.spark.streaming.simulations.common.DataFrameExtensions._
+
+    eventHubsWindowedStream.map(m => EventContent(new String(m)))
+      .foreachRDD { rdd => {
+          val sparkSession = SparkSession.builder.getOrCreate
+          import sparkSession.implicits._
+          rdd.toDF.insertToAzureSql(sqlDatabaseConnectionString, sqlTableName)
+        }
+      }
 
     // Count number of events received the past batch
 
@@ -94,7 +113,6 @@ object EventhubsEventCount {
       eventHubsWindowedStream.map(m => (StreamStatistics.streamLengthKey, 1L))
     val totalEventCount =
       totalEventCountDStream.updateStateByKey[Long](StreamStatistics.streamLength)
-
     totalEventCount.checkpoint(Seconds(inputOptions(Symbol(EventhubsArgumentKeys
       .BatchIntervalInSeconds)).asInstanceOf[Int]))
 
@@ -111,20 +129,44 @@ object EventhubsEventCount {
 
   def main(inputArguments: Array[String]): Unit = {
 
-    val inputOptions: ArgumentMap =
-      EventhubsArgumentParser.parseArguments(Map(), inputArguments.toList)
+    val inputOptions = EventhubsArgumentParser.parseArguments(Map(), inputArguments.toList)
 
-    EventhubsArgumentParser.verifyEventhubsEventCountArguments(inputOptions)
+    EventhubsArgumentParser.verifyEventhubsToSQLTableArguments(inputOptions)
+
+    val sqlDatabaseConnectionString : String = StreamUtilities.getSqlJdbcConnectionString(
+      inputOptions(Symbol(EventhubsArgumentKeys.SQLServerFQDN)).asInstanceOf[String],
+      inputOptions(Symbol(EventhubsArgumentKeys.SQLDatabaseName)).asInstanceOf[String],
+      inputOptions(Symbol(EventhubsArgumentKeys.DatabaseUsername)).asInstanceOf[String],
+      inputOptions(Symbol(EventhubsArgumentKeys.DatabasePassword)).asInstanceOf[String])
+
+    val sqlTableName: String =
+      inputOptions(Symbol(EventhubsArgumentKeys.EventSQLTable)).asInstanceOf[String]
+
+    val sqlDriverConnection: Connection =
+      DriverManager.getConnection(sqlDatabaseConnectionString)
+
+    sqlDriverConnection.setAutoCommit(false)
+    val sqlDriverStatement: Statement = sqlDriverConnection.createStatement()
+    sqlDriverStatement.addBatch(f"IF NOT EXISTS(SELECT * FROM sys.objects WHERE object_id" +
+      f" = OBJECT_ID(N'[dbo].[$sqlTableName]') AND type in (N'U'))" +
+      f"\nCREATE TABLE $sqlTableName(EventDetails NVARCHAR(128) NOT NULL)")
+    sqlDriverStatement.addBatch(f"IF IndexProperty(Object_Id('$sqlTableName')," +
+      f" 'IX_EventDetails', 'IndexId') IS NULL" +
+      f"\nCREATE CLUSTERED INDEX IX_EventDetails ON $sqlTableName(EventDetails)")
+    sqlDriverStatement.executeBatch()
+    sqlDriverConnection.commit()
+
+    sqlDriverConnection.close()
 
     // Create or recreate streaming context
 
     val streamingContext = StreamingContext.getOrCreate(inputOptions(Symbol(EventhubsArgumentKeys
-      .CheckpointDirectory)).asInstanceOf[String],
-      () => createStreamingContext(inputOptions))
+      .CheckpointDirectory)).asInstanceOf[String], () => createStreamingContext(inputOptions))
+
 
     streamingContext.start()
 
-    if(inputOptions.contains(Symbol(EventhubsArgumentKeys.TimeoutInMinutes))) {
+    if (inputOptions.contains(Symbol(EventhubsArgumentKeys.TimeoutInMinutes))) {
 
       streamingContext.awaitTerminationOrTimeout(inputOptions(Symbol(EventhubsArgumentKeys
         .TimeoutInMinutes)).asInstanceOf[Long] * 60 * 1000)
@@ -135,5 +177,3 @@ object EventhubsEventCount {
     }
   }
 }
-
-

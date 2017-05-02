@@ -145,8 +145,8 @@ class EventHubsClientWrapper extends Serializable {
     }
     // TODO: validate inputs
     val evhName = eventhubsParams("eventhubs.name")
-    val evhPolicyName = eventhubsParams.getOrElse(("eventhubs.policyname"), "eventhubspolicyname")
-    val evhPolicyKey = eventhubsParams.getOrElse(("eventhubs.policykey"), "eventhubspolicykey")
+    val evhPolicyName = eventhubsParams.getOrElse("eventhubs.policyname", "eventhubspolicyname")
+    val evhPolicyKey = eventhubsParams.getOrElse("eventhubs.policykey", "eventhubspolicykey")
     val connectionString = new ConnectionStringBuilder(namespaceName.get, evhName, evhPolicyName,
       evhPolicyKey)
     // Set the consumer group if specified.

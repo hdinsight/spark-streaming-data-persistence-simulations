@@ -17,6 +17,9 @@
 
 package org.apache.spark.eventhubscommon.client
 
+import com.microsoft.azure.eventhubs.{EventHubClient => AzureEventHubClient}
+import com.microsoft.azure.servicebus.SharedAccessSignatureTokenProvider
+
 import java.net.SocketTimeoutException
 import java.time.Duration
 
@@ -25,8 +28,6 @@ import scala.concurrent.{Await, Future}
 import scala.concurrent.duration._
 import scala.util.{Failure, Success}
 import scala.xml.XML
-
-import com.microsoft.azure.servicebus.SharedAccessSignatureTokenProvider
 import scalaj.http.{Http, HttpResponse}
 
 import org.apache.spark.eventhubscommon.EventHubNameAndPartition
@@ -169,8 +170,11 @@ private[spark] class RestfulEventHubClient(
       retryIfFail: Boolean,
       targetEventHubsNameAndPartitions: List[EventHubNameAndPartition]):
     Option[Map[EventHubNameAndPartition, (Long, Long)]] = {
-    queryPartitionRuntimeInfo(targetEventHubsNameAndPartitions,
-      fromResponseBodyToEndpoint, retryIfFail)
+
+    Option(targetEventHubsNameAndPartitions.map(x => x -> ( Long.MaxValue, Long.MaxValue)).toMap)
+
+    // queryPartitionRuntimeInfo(targetEventHubsNameAndPartitions,
+    //  fromResponseBodyToEndpoint, retryIfFail)
   }
 }
 
@@ -185,11 +189,12 @@ private[spark] object RestfulEventHubClient {
       },
       consumerGroups = {
         eventhubsParams.map { case (eventhubName, params) => (eventhubName,
-          params("eventhubs.consumergroup"))
+          params.getOrElse("eventhubs.consumergroup",
+            AzureEventHubClient.DEFAULT_CONSUMER_GROUP_NAME))
         }
       },
       policyKeys = eventhubsParams.map { case (eventhubName, params) => (eventhubName,
-        (params("eventhubs.policyname"), params("eventhubs.policykey")))
+        (params.getOrElse("eventhubs.policyname", ""), params.getOrElse("eventhubs.policykey", "")))
       },
       threadNum = 15)
   }

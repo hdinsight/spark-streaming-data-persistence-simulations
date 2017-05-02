@@ -29,6 +29,7 @@ object EventhubsArgumentParser {
     val partitionCount: Int = 32
     val batchInterval: Int = 10
     val checkpointDirectory: String = "/EventCheckpoint10"
+    val progressDirectory: String = "/EventProgress10"
     val eventCountFolder: String = "/EventCount/EventCount10"
     val eventStoreFolder: String = "/EventStore/EventStore10"
     val eventHiveTable: String = "EventHiveTable10"
@@ -41,38 +42,57 @@ object EventhubsArgumentParser {
 
     println()
     println(s"Usage [EventhubsEventCount]: spark-submit --master yarn-cluster ..." +
-      s" --class com.microsoft.spark.streaming.simulations.workloads.EventHubsEventCount" +
-      s" /home/hdiuser/spark-streaming-data-persistence-simulations-2.0.0.jar --eventhubs-namespace" +
-      s" \'$eventhubsNamespace\' --eventhubs-name \'$eventhubsName\' --eventSizeInChars $eventSizeInChars" +
-      s" --partition-count  $partitionCount --batch-interval-in-seconds $batchInterval --checkpoint-directory" +
-      s" \'$checkpointDirectory\' --event-count-folder \'$eventCountFolder\'" +
-      s" --job-timeout-in-minutes $timeoutInMinutes")
+      s" --class com.microsoft.spark.streaming.simulations.workloads" +
+      s".receiverstreaming.EventHubsEventCount " +
+      s"/home/hdiuser/spark-streaming-data-persistence-simulations-2.1.0.jar " +
+      s"--eventhubs-namespace \'$eventhubsNamespace\' --eventhubs-name \'$eventhubsName\' " +
+      s" --partition-count  $partitionCount --eventSizeInChars $eventSizeInChars " +
+      s"--batch-interval-in-seconds $batchInterval --checkpoint-directory" +
+      s" \'$checkpointDirectory\' --event-count-folder \'$eventCountFolder\' " +
+      s"--job-timeout-in-minutes $timeoutInMinutes")
     println()
     println(s"Usage [EventhubsToAzureBlobAsJSON]: spark-submit --master yarn-cluster ..." +
-      s" --class com.microsoft.spark.streaming.simulations.workloads.EventhubsToAzureBlobAsJSON" +
-      s" /home/hdiuser/spark-streaming-data-persistence-simulations-2.0.0.jar --eventhubs-namespace" +
-      s" \'$eventhubsNamespace\' --eventhubs-name \'$eventhubsName\' --eventSizeInChars $eventSizeInChars" +
-      s" --partition-count  $partitionCount --batch-interval-in-seconds $batchInterval --checkpoint-directory" +
+      s" --class com.microsoft.spark.streaming.simulations.workloads.receiverstreaming" +
+      s".EventhubsToAzureBlobAsJSON " +
+      s"/home/hdiuser/spark-streaming-data-persistence-simulations-2.1.0.jar " +
+      s"--eventhubs-namespace \'$eventhubsNamespace\' --eventhubs-name \'$eventhubsName\' " +
+      s" --partition-count  $partitionCount --eventSizeInChars $eventSizeInChars " +
+      s"--batch-interval-in-seconds $batchInterval --checkpoint-directory" +
       s" \'$checkpointDirectory\' --event-count-folder \'$eventCountFolder\' --event-store-folder" +
       s" \'$eventStoreFolder\' --job-timeout-in-minutes $timeoutInMinutes")
     println()
     println(s"Usage [EventhubsToHiveTable]: spark-submit --master yarn-cluster ..." +
-      s" --class com.microsoft.spark.streaming.simulations.workloads.EventhubsToHiveTable" +
-      s" /home/hdiuser/spark-streaming-data-persistence-simulations-2.0.0.jar --eventhubs-namespace" +
-      s" \'$eventhubsNamespace\' --eventhubs-name \'$eventhubsName\' --eventSizeInChars $eventSizeInChars" +
-      s" --partition-count  $partitionCount --batch-interval-in-seconds $batchInterval --checkpoint-directory" +
-      s" \'$checkpointDirectory\' --event-count-folder \'$eventCountFolder\' --event-hive-table \'$eventHiveTable\'" +
-      s" --job-timeout-in-minutes $timeoutInMinutes")
+      s" --class com.microsoft.spark.streaming.simulations.workloads.receiverstreaming" +
+      s".EventhubsToHiveTable " +
+      s"/home/hdiuser/spark-streaming-data-persistence-simulations-2.1.0.jar " +
+      s"--eventhubs-namespace \'$eventhubsNamespace\' --eventhubs-name \'$eventhubsName\' " +
+      s" --partition-count  $partitionCount --eventSizeInChars $eventSizeInChars " +
+      s"--batch-interval-in-seconds $batchInterval --checkpoint-directory" +
+      s" \'$checkpointDirectory\' --event-count-folder \'$eventCountFolder\' --event-hive-table" +
+      s" \'$eventHiveTable\' --job-timeout-in-minutes $timeoutInMinutes")
     println()
     println(s"Usage [EventhubsToSQLTable]: spark-submit --master yarn-cluster ..." +
-      s" --class com.microsoft.spark.streaming.simulations.workloads.EventhubsToSQLTable" +
-      s" /home/hdiuser/spark-streaming-data-persistence-simulations-2.0.0.jar --eventhubs-namespace" +
-      s" \'$eventhubsNamespace\' --eventhubs-name \'$eventhubsName\' --eventSizeInChars $eventSizeInChars" +
-      s" --partition-count  $partitionCount --batch-interval-in-seconds $batchInterval" +
-      s" --checkpoint-directory \'$checkpointDirectory\' --event-count-folder \'$eventCountFolder\'" +
-      s" --sql-server-fqdn \'$sqlServerFQDN\' --sql-database-name \'$sqlDatabaseName\'" +
-      s" --database-username \'$databaseUsername\' --database-password \'$databasePassword\'" +
-      s" --event-sql-table \'$eventSQLTable\' --job-timeout-in-minutes $timeoutInMinutes")
+      s" --class com.microsoft.spark.streaming.simulations.workloads.receiverstreaming" +
+      s".EventhubsToSQLTable " +
+      s"/home/hdiuser/spark-streaming-data-persistence-simulations-2.1.0.jar " +
+      s"--eventhubs-namespace \'$eventhubsNamespace\' --eventhubs-name \'$eventhubsName\' " +
+      s" --partition-count $partitionCount --eventSizeInChars $eventSizeInChars " +
+      s"--batch-interval-in-seconds $batchInterval --checkpoint-directory" +
+      s" \'$checkpointDirectory\' --event-count-folder \'$eventCountFolder\' " +
+      s"--sql-server-fqdn \'$sqlServerFQDN\' --sql-database-name \'$sqlDatabaseName\' " +
+      s"--database-username \'$databaseUsername\' --database-password \'$databasePassword\' " +
+      s"--event-sql-table \'$eventSQLTable\' --job-timeout-in-minutes $timeoutInMinutes")
+    println()
+    println()
+    println(s"Usage [EventhubsEventCount]: spark-submit --master yarn-cluster ..." +
+      s" --class com.microsoft.spark.streaming.simulations.workloads" +
+      s".directstreaming.EventHubsEventCount " +
+      s"/home/hdiuser/spark-streaming-data-persistence-simulations-2.1.0.jar " +
+      s"--eventhubs-namespace \'$eventhubsNamespace\' --eventhubs-name \'$eventhubsName\' " +
+      s" --partition-count  $partitionCount --eventSizeInChars $eventSizeInChars " +
+      s"--batch-interval-in-seconds $batchInterval --checkpoint-directory" +
+      s" \'$checkpointDirectory\' --progress-directory \'$progressDirectory\' " +
+      s"--event-count-folder \'$eventCountFolder\' --job-timeout-in-minutes $timeoutInMinutes")
     println()
   }
 
@@ -81,35 +101,53 @@ object EventhubsArgumentParser {
     argumentList match {
       case Nil => argumentMap
       case "--eventhubs-namespace" :: value:: tail =>
-        parseArguments(argumentMap ++ Map(Symbol(EventhubsArgumentKeys.EventhubsNamespace) -> value.toString), tail)
+        parseArguments(argumentMap ++ Map(Symbol(EventhubsArgumentKeys.EventhubsNamespace) ->
+          value.toString), tail)
       case "--eventhubs-name" :: value :: tail =>
-        parseArguments(argumentMap ++ Map(Symbol(EventhubsArgumentKeys.EventhubsName) -> value.toString), tail)
+        parseArguments(argumentMap ++ Map(Symbol(EventhubsArgumentKeys.EventhubsName) ->
+          value.toString), tail)
       case "--eventSizeInChars" :: value :: tail =>
-        parseArguments(argumentMap ++ Map(Symbol(EventhubsArgumentKeys.EventSizeInChars) -> value.toInt), tail)
+        parseArguments(argumentMap ++ Map(Symbol(EventhubsArgumentKeys.EventSizeInChars) ->
+          value.toInt), tail)
       case "--partition-count" :: value :: tail =>
-        parseArguments(argumentMap ++ Map(Symbol(EventhubsArgumentKeys.PartitionCount) -> value.toInt), tail)
+        parseArguments(argumentMap ++ Map(Symbol(EventhubsArgumentKeys.PartitionCount) ->
+          value.toInt), tail)
       case "--batch-interval-in-seconds" :: value :: tail =>
-        parseArguments(argumentMap ++ Map(Symbol(EventhubsArgumentKeys.BatchIntervalInSeconds) -> value.toInt), tail)
+        parseArguments(argumentMap ++ Map(Symbol(EventhubsArgumentKeys.BatchIntervalInSeconds) ->
+          value.toInt), tail)
       case "--checkpoint-directory" :: value :: tail =>
-        parseArguments(argumentMap ++ Map(Symbol(EventhubsArgumentKeys.CheckpointDirectory) -> value.toString), tail)
+        parseArguments(argumentMap ++ Map(Symbol(EventhubsArgumentKeys.CheckpointDirectory) ->
+          value.toString), tail)
+      case "--progress-directory" :: value :: tail =>
+        parseArguments(argumentMap ++ Map(Symbol(EventhubsArgumentKeys.ProgressDirectory) ->
+          value.toString), tail)
       case "--event-count-folder" :: value :: tail =>
-        parseArguments(argumentMap ++ Map(Symbol(EventhubsArgumentKeys.EventCountFolder) -> value.toString), tail)
+        parseArguments(argumentMap ++ Map(Symbol(EventhubsArgumentKeys.EventCountFolder) ->
+          value.toString), tail)
       case "--event-store-folder" :: value :: tail =>
-        parseArguments(argumentMap ++ Map(Symbol(EventhubsArgumentKeys.EventStoreFolder) -> value.toString), tail)
+        parseArguments(argumentMap ++ Map(Symbol(EventhubsArgumentKeys.EventStoreFolder) ->
+          value.toString), tail)
       case "--event-hive-table" :: value :: tail =>
-        parseArguments(argumentMap ++ Map(Symbol(EventhubsArgumentKeys.EventHiveTable) -> value.toString), tail)
+        parseArguments(argumentMap ++ Map(Symbol(EventhubsArgumentKeys.EventHiveTable) ->
+          value.toString), tail)
       case "--sql-server-fqdn" :: value :: tail =>
-        parseArguments(argumentMap ++ Map(Symbol(EventhubsArgumentKeys.SQLServerFQDN) -> value.toString), tail)
+        parseArguments(argumentMap ++ Map(Symbol(EventhubsArgumentKeys.SQLServerFQDN) ->
+          value.toString), tail)
       case "--sql-database-name" :: value :: tail =>
-        parseArguments(argumentMap ++ Map(Symbol(EventhubsArgumentKeys.SQLDatabaseName) -> value.toString), tail)
+        parseArguments(argumentMap ++ Map(Symbol(EventhubsArgumentKeys.SQLDatabaseName) ->
+          value.toString), tail)
       case "--database-username" :: value :: tail =>
-        parseArguments(argumentMap ++ Map(Symbol(EventhubsArgumentKeys.DatabaseUsername) -> value.toString), tail)
+        parseArguments(argumentMap ++ Map(Symbol(EventhubsArgumentKeys.DatabaseUsername) ->
+          value.toString), tail)
       case "--database-password" :: value :: tail =>
-        parseArguments(argumentMap ++ Map(Symbol(EventhubsArgumentKeys.DatabasePassword) -> value.toString), tail)
+        parseArguments(argumentMap ++ Map(Symbol(EventhubsArgumentKeys.DatabasePassword) ->
+          value.toString), tail)
       case "--event-sql-table" :: value :: tail =>
-        parseArguments(argumentMap ++ Map(Symbol(EventhubsArgumentKeys.EventSQLTable) -> value.toString), tail)
+        parseArguments(argumentMap ++ Map(Symbol(EventhubsArgumentKeys.EventSQLTable) ->
+          value.toString), tail)
       case "--job-timeout-in-minutes"  :: value :: tail =>
-        parseArguments(argumentMap ++ Map(Symbol(EventhubsArgumentKeys.TimeoutInMinutes) -> value.toLong), tail)
+        parseArguments(argumentMap ++ Map(Symbol(EventhubsArgumentKeys.TimeoutInMinutes) ->
+          value.toLong), tail)
       case option :: tail =>
         println()
         println("Unknown option: " + option)

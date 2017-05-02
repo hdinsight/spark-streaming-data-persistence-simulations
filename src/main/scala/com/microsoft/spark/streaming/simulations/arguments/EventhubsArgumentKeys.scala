@@ -24,6 +24,7 @@ object EventhubsArgumentKeys extends Enumeration {
   val PartitionCount: String = "partitionCount"
   val BatchIntervalInSeconds: String = "batchInterval"
   val CheckpointDirectory: String = "checkpointDirectory"
+  val ProgressDirectory: String = "progressDirectory"
   val EventCountFolder: String = "eventCountFolder"
   val EventStoreFolder: String = "eventStoreFolder"
   val EventHiveTable: String = "eventHiveTable"

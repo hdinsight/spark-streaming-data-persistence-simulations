@@ -15,18 +15,18 @@
  * limitations under the License.
  */
 
-package com.microsoft.spark.streaming.simulations.workloads
+package com.microsoft.spark.streaming.simulations.workloads.receiverstreaming
 
 import com.microsoft.spark.streaming.simulations.arguments.{EventhubsArgumentKeys, EventhubsArgumentParser}
 import com.microsoft.spark.streaming.simulations.arguments.EventhubsArgumentParser._
-import com.microsoft.spark.streaming.simulations.common.{EventContent, StreamStatistics}
+import com.microsoft.spark.streaming.simulations.common.StreamStatistics
 
 import org.apache.spark._
-import org.apache.spark.sql.{SaveMode, SparkSession}
+import org.apache.spark.sql.SparkSession
 import org.apache.spark.streaming.eventhubs.EventHubsUtils
 import org.apache.spark.streaming.{Seconds, StreamingContext}
 
-object EventhubsToAzureBlobAsJSON {
+object EventhubsEventCount {
 
   def createStreamingContext(inputOptions: ArgumentMap): StreamingContext = {
 
@@ -37,21 +37,21 @@ object EventhubsToAzureBlobAsJSON {
       "eventhubs.name" ->
         inputOptions(Symbol(EventhubsArgumentKeys.EventhubsName)).asInstanceOf[String],
       "eventhubs.partition.count" ->
-        inputOptions(Symbol(EventhubsArgumentKeys.PartitionCount))
-      .asInstanceOf[Int].toString,
+        inputOptions(Symbol(EventhubsArgumentKeys.PartitionCount)).asInstanceOf[Int].toString,
       "eventhubs.checkpoint.interval" ->
         inputOptions(Symbol(EventhubsArgumentKeys.BatchIntervalInSeconds))
-      .asInstanceOf[Int].toString,
+          .asInstanceOf[Int].toString,
       "eventhubs.checkpoint.dir" ->
         inputOptions(Symbol(EventhubsArgumentKeys.CheckpointDirectory)).asInstanceOf[String]
     )
 
     eventHubsParameters =
       if (inputOptions.contains(Symbol(EventhubsArgumentKeys.EventSizeInChars))) {
-        eventHubsParameters + ("eventhubs.event.size" ->
-          inputOptions(Symbol(EventhubsArgumentKeys.EventSizeInChars))
-            .asInstanceOf[Int].toString)
-      } else eventHubsParameters
+      eventHubsParameters + ("eventhubs.event.size" ->
+        inputOptions(Symbol(EventhubsArgumentKeys.EventSizeInChars))
+        .asInstanceOf[Int].toString)
+    } else eventHubsParameters
+
 
     /**
       * In Spark 2.0.x, SparkConf must be initialized through EventhubsUtil so that required
@@ -68,26 +68,19 @@ object EventhubsToAzureBlobAsJSON {
     sparkConfiguration.set("spark.streaming.receiver.writeAheadLog.closeFileAfterWrite", "true")
     sparkConfiguration.set("spark.streaming.stopGracefullyOnShutdown", "true")
 
-    val sparkSession : SparkSession = SparkSession.builder.config(sparkConfiguration).getOrCreate
+    val sparkSession : SparkSession =
+      SparkSession.builder().config(sparkConfiguration).getOrCreate()
 
     val streamingContext = new StreamingContext(sparkSession.sparkContext,
       Seconds(inputOptions(Symbol(EventhubsArgumentKeys.BatchIntervalInSeconds)).asInstanceOf[Int]))
-    streamingContext.checkpoint(inputOptions(Symbol(EventhubsArgumentKeys
-      .CheckpointDirectory)).asInstanceOf[String])
+    streamingContext.checkpoint(inputOptions(Symbol(EventhubsArgumentKeys.CheckpointDirectory))
+      .asInstanceOf[String])
 
     val eventHubsStream = EventHubsUtils.createUnionStream(streamingContext, eventHubsParameters)
 
-    val eventHubsWindowedStream =
-      eventHubsStream.window(Seconds(inputOptions(Symbol(EventhubsArgumentKeys
-        .BatchIntervalInSeconds)).asInstanceOf[Int]))
-
-    eventHubsWindowedStream.map(x => EventContent(new String(x)))
-      .foreachRDD(rdd => {
-        val sparkSession = SparkSession.builder.getOrCreate
-        import sparkSession.implicits._
-        rdd.toDS.toJSON.write.mode(SaveMode.Overwrite)
-          .save(inputOptions(Symbol(EventhubsArgumentKeys.EventStoreFolder)).asInstanceOf[String])
-      })
+    val eventHubsWindowedStream = eventHubsStream
+      .window(Seconds(inputOptions(Symbol(EventhubsArgumentKeys.BatchIntervalInSeconds))
+        .asInstanceOf[Int]))
 
     // Count number of events received the past batch
 
@@ -101,6 +94,7 @@ object EventhubsToAzureBlobAsJSON {
       eventHubsWindowedStream.map(m => (StreamStatistics.streamLengthKey, 1L))
     val totalEventCount =
       totalEventCountDStream.updateStateByKey[Long](StreamStatistics.streamLength)
+
     totalEventCount.checkpoint(Seconds(inputOptions(Symbol(EventhubsArgumentKeys
       .BatchIntervalInSeconds)).asInstanceOf[Int]))
 
@@ -117,15 +111,16 @@ object EventhubsToAzureBlobAsJSON {
 
   def main(inputArguments: Array[String]): Unit = {
 
-    val inputOptions = EventhubsArgumentParser.parseArguments(Map(), inputArguments.toList)
+    val inputOptions: ArgumentMap =
+      EventhubsArgumentParser.parseArguments(Map(), inputArguments.toList)
 
-    EventhubsArgumentParser.verifyEventhubsToAzureBlobAsJSONArguments(inputOptions)
+    EventhubsArgumentParser.verifyEventhubsEventCountArguments(inputOptions)
 
     // Create or recreate streaming context
 
     val streamingContext = StreamingContext.getOrCreate(inputOptions(Symbol(EventhubsArgumentKeys
       .CheckpointDirectory)).asInstanceOf[String],
-        () => createStreamingContext(inputOptions))
+      () => createStreamingContext(inputOptions))
 
     streamingContext.start()
 
@@ -140,4 +135,5 @@ object EventhubsToAzureBlobAsJSON {
     }
   }
 }
+
 
