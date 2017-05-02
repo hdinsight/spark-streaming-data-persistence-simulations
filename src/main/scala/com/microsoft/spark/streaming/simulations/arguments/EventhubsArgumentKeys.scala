@@ -21,6 +21,7 @@ object EventhubsArgumentKeys extends Enumeration {
   val EventhubsNamespace: String = "eventhubsNamespace"
   val EventhubsName: String = "eventhubsName"
   val EventSizeInChars: String = "eventSizeInChars"
+  val EventMaxRatePerPartition: String = "eventMaxRate"
   val PartitionCount: String = "partitionCount"
   val BatchIntervalInSeconds: String = "batchInterval"
   val CheckpointDirectory: String = "checkpointDirectory"

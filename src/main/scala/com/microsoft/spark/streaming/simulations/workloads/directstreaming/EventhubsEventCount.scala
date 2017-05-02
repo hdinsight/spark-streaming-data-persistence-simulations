@@ -54,6 +54,13 @@ object EventhubsEventCount {
             .asInstanceOf[Int].toString)
       } else eventHubsParameters
 
+    eventHubsParameters =
+      if (inputOptions.contains(Symbol(EventhubsArgumentKeys.EventMaxRatePerPartition))) {
+        eventHubsParameters + ("eventhubs.maxRate" ->
+          inputOptions(Symbol(EventhubsArgumentKeys.EventMaxRatePerPartition))
+            .asInstanceOf[Int].toString)
+      } else eventHubsParameters
+
 
     /**
       * In Spark 2.0.x, SparkConf must be initialized through EventhubsUtil so that required

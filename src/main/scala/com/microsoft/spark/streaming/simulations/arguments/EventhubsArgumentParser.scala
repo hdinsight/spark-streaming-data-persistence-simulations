@@ -106,8 +106,11 @@ object EventhubsArgumentParser {
       case "--eventhubs-name" :: value :: tail =>
         parseArguments(argumentMap ++ Map(Symbol(EventhubsArgumentKeys.EventhubsName) ->
           value.toString), tail)
-      case "--eventSizeInChars" :: value :: tail =>
+      case "--event-size-in-Chars" :: value :: tail =>
         parseArguments(argumentMap ++ Map(Symbol(EventhubsArgumentKeys.EventSizeInChars) ->
+          value.toInt), tail)
+      case "--event-max-rate-per-partition" :: value :: tail =>
+        parseArguments(argumentMap ++ Map(Symbol(EventhubsArgumentKeys.EventMaxRatePerPartition) ->
           value.toInt), tail)
       case "--partition-count" :: value :: tail =>
         parseArguments(argumentMap ++ Map(Symbol(EventhubsArgumentKeys.PartitionCount) ->
