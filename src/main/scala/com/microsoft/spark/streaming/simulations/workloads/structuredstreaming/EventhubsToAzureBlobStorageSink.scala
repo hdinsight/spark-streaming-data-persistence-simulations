@@ -45,7 +45,7 @@ object EventhubsToAzureBlobStorageSink {
           .asInstanceOf[Int].toString,
       "eventhubs.checkpoint.dir" ->
         inputOptions(Symbol(EventhubsArgumentKeys.CheckpointDirectory)).asInstanceOf[String],
-      "eventhubs.progress.dir" ->
+      "eventhubs.progressTrackingDir" ->
         inputOptions(Symbol(EventhubsArgumentKeys.ProgressDirectory)).asInstanceOf[String]
     )
 
@@ -67,16 +67,22 @@ object EventhubsToAzureBlobStorageSink {
     val inputStream = sparkSession.readStream.format("eventhubs")
       .options(eventHubsParameters).load()
 
+    val processingTime: String = inputOptions(Symbol(EventhubsArgumentKeys.BatchIntervalInSeconds))
+      .asInstanceOf[Int].toString + " seconds"
+
     val streamingQuery = inputStream.writeStream.outputMode("append")
-      .trigger(ProcessingTime(inputOptions(Symbol(EventhubsArgumentKeys.BatchIntervalInSeconds))
-        .asInstanceOf[Int].toString + " Seconds"))
+      .trigger(ProcessingTime(processingTime))
       .option("checkpointLocation", eventHubsParameters("eventhubs.checkpoint.dir"))
       .format("parquet").option("path", inputOptions(Symbol(EventhubsArgumentKeys.EventStoreFolder))
       .asInstanceOf[String]).partitionBy("enqueuedTime").start()
 
-    if(inputOptions.contains(Symbol(EventhubsArgumentKeys.TimeoutInMinutes))) {
-      streamingQuery.awaitTermination(inputOptions(Symbol(EventhubsArgumentKeys
-        .TimeoutInMinutes)).asInstanceOf[Long] * 60 * 1000)
+    val timeOutInMinutes: Long =
+      if (inputOptions.contains(Symbol(EventhubsArgumentKeys.TimeoutInMinutes))) {
+      inputOptions(Symbol(EventhubsArgumentKeys.TimeoutInMinutes)).asInstanceOf[Long]
+    } else -1L
+
+    if (timeOutInMinutes > -1L) {
+      streamingQuery.awaitTermination(timeOutInMinutes * 60 * 1000)
     }
     else {
       streamingQuery.awaitTermination()

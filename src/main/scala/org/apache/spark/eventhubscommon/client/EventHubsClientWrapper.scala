@@ -34,18 +34,16 @@
 package org.apache.spark.eventhubscommon.client
 
 import java.time.Instant
+import java.util.Date
 
 import scala.collection.Map
 import scala.collection.mutable.ArrayBuffer
 import scala.util.Random
-
 import com.microsoft.azure.eventhubs.{EventHubClient => AzureEventHubClient, _}
 import com.microsoft.azure.eventhubs.EventData.SystemProperties
 import com.microsoft.azure.servicebus.ConnectionStringBuilder
 import com.microsoft.azure.servicebus.amqp.AmqpConstants
-
 import org.apache.spark.streaming.eventhubs.checkpoint.OffsetStore
-
 import org.mockito.internal.util.reflection.Whitebox
 
 @SerialVersionUID(1L)
@@ -110,7 +108,8 @@ class EventHubsClientWrapper extends Serializable {
       systemPropertiesMap.put(AmqpConstants.SEQUENCE_NUMBER_ANNOTATION_NAME,
         Long.box(eventSequenceNumber))
       systemPropertiesMap.put(AmqpConstants.PARTITION_KEY_ANNOTATION_NAME, eventhubPartitionId)
-      systemPropertiesMap.put(AmqpConstants.ENQUEUED_TIME_UTC_ANNOTATION_NAME, Instant.now())
+      systemPropertiesMap.put(AmqpConstants.ENQUEUED_TIME_UTC_ANNOTATION_NAME,
+        Date.from(Instant.now()))
 
       eventSequenceNumber = eventSequenceNumber + 1
       currentOffset = (currentOffset.toLong + 1).toString
